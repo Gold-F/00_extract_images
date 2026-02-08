@@ -5,7 +5,7 @@ import sys
 import os
 from pdf_extract_images_detector import AdDetector
 from pdf_extract_images_ui import get_ad_text, get_sub_text, get_teikei_flag, get_custom_size
-from pdf_extract_images_loader import collect_pdf_files, load_csv_files
+from pdf_extract_images_loader import collect_pdf_files, load_size_file, load_trim_file, resource_path
 
 
 def main():
@@ -14,18 +14,18 @@ def main():
         print("START [ PDF_extract_images ]")  
 
         base_dir = (
-            os.path.dirname(sys.executable)
+            os.path.dirname(sys.executable) # sys.executable + sys.frozen → exe 本体の場所
             if getattr(sys, 'frozen', False)
             else os.path.dirname(os.path.abspath(__file__))
         )
         storage_dir = os.path.join(base_dir, "storage_")
         input_dir = os.path.join(base_dir, "input_files")
-        font_path = os.path.join(base_dir, "fonts", "NotoSansJP-Regular.ttf")
+        font_path = resource_path(os.path.join("fonts", "NotoSansJP-Regular.ttf")) #ビルド時にバンドルするinternalフォルダの中に入る
 
         # データ読み込み
         pdf_files = collect_pdf_files(storage_dir)
-        ad_sizes = load_csv_files(os.path.join(input_dir, "ad_size_list.csv"))
-        trim_sizes = load_csv_files(os.path.join(input_dir, "trim_size_list.csv"))
+        ad_sizes = load_size_file(os.path.join(input_dir, "ad_size_list.csv"))
+        trim_sizes = load_trim_file(os.path.join(input_dir, "trim_size_list.csv"))
 
         root = tk.Tk()
         root.withdraw()  # メインウィンドウを非表示にする
@@ -47,7 +47,7 @@ def main():
             ad_text = ad_text,
             sub_text = sub_text,
             ad_sizes = ad_sizes,
-            trim_sizes = trim_sizes[0] #リストにして渡されるので最初の要素を取得
+            trim_sizes = trim_sizes
         )
         detector.run()
        

@@ -14,9 +14,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from tkinter import messagebox
+from reportlab.lib.utils import ImageReader
 import os  # フォルダ操作に使用
-import sys  # プログラム終了に使用
 
 class AdDetector:
     def __init__(self,storage_dir, font_path, pdf_files, ad_text, sub_text, ad_sizes, trim_sizes):
@@ -28,19 +27,9 @@ class AdDetector:
         self.ad_sizes = ad_sizes
         self.trim_sizes = trim_sizes
         self.dpi = 150
-        self.tolerance_px = self.dpi * 3 / 25.4
         self.min_area = 13000
         self.tolerance_mm = 3
         # フォント設定
-        self.set_font(self.font_path)
-
-
-        
-    def set_font(self, font_path):
-    # 日本語対応フォントの登録 # TTF or OTF推奨
-        if not os.path.exists(font_path):
-            messagebox.showerror("エラー", f"フォントファイルが見つかりません: {font_path}")
-            sys.exit()
         pdfmetrics.registerFont(TTFont("NotoJP", font_path))
 
     def sanitize_filename(self, text):
@@ -78,8 +67,8 @@ class AdDetector:
                     #[pillow] 画像を開く
                     image_pil = Image.open(input_png_path)
                     # [pillow] 外側の長方形があると内部の長方形が取得できないのでトリミングする
-                    left, right = self.trim_sizes
-                    top, bottom = 0, 0
+                    left, right, top, bottom = self.trim_sizes
+                    
                     width, height = image_pil.size
                     cropped_image = image_pil.crop((left, top, width - right, height - bottom))
 
@@ -113,7 +102,6 @@ class AdDetector:
                     # 結果を表示（デバッグ用）
                     # output_image_path = os.path.join(parts_folder, "edges_1.jpg")
                     # cv2.imwrite(output_image_path, edges_combined)
-                    print(f"        Detected {len(contours_sorted)} contours")
                     single_num = 0 # 個別PDFの連番       
                     single_pdf_paths = [] # 個別PDFの保存パス一覧(マージ用)
                     # [opencv] 指定サイズ内の枠を探す
@@ -122,10 +110,6 @@ class AdDetector:
                             continue
                         x, y, w, h = cv2.boundingRect(cnt) # intで取得される
                         tolerance = dpi*self.tolerance_mm/25.4 # 3mmの許容誤差
-                        # if w < dpi*30/25.4 - tolerance and teikei_flag:
-                        #     break
-                        # if h < dpi*32/25.4 - tolerance and teikei_flag:
-                        #     continue
                         for size in ad_sizes:
                             size_width_mm, size_height_mm = size
                             scaled_width_px = size_width_mm * dpi / 25.4
@@ -157,7 +141,8 @@ class AdDetector:
                                 offset_y_pt = (page_height_pt - h_pt) / 2
                                 
                                 # [reportlab] 画像挿入
-                                c.drawImage(output_path_pil, offset_x_pt, offset_y_pt, width=w_pt, height=h_pt)
+                                img_reader = ImageReader(output_path_pil) #安全に画像を読み込むラッパー
+                                c.drawImage(img_reader, offset_x_pt, offset_y_pt, width=w_pt, height=h_pt)
                                 font_name = "NotoJP"
                                 font_size = 18
                                 # [reportlab] 日本語テキスト描画（フォント設定必要）
